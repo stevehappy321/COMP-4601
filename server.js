@@ -1,5 +1,6 @@
 import express from 'express';
 import { Store } from './Store.js';
+import { Filter } from './Filter.js'
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from "fs";
@@ -34,9 +35,13 @@ app.get('/product/:productId', (req, res) => {
 
 //APIS
 app.post('/api/filter', (req, res) => {
-  const filters = req.body;
-  let products = store.search(filters);
-  console.log(products);
+  const filter = Filter.fromJSON(req.body);
+  let products = store.search(filter);
+  res.status(200).json(products);
+});
+
+app.get('/api/catalogue', (req, res) => {
+  let products = store.getProducts({});
   res.status(200).json(products);
 });
 

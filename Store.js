@@ -32,8 +32,8 @@ export class Store {
         }
     }
 
-    search(parameters) {
-        const {id, name, price, dimensions, inStock} = this.cleanupParameters(parameters);
+    search(filter) {
+        const {id, name, price, dimensions, inStockOnly} = filter;
         let products = this.products;
 
         // ID
@@ -73,7 +73,7 @@ export class Store {
 
         // stock
         products = products.filter(product => {
-            if(!inStock) return true;
+            if(!inStockOnly) return true;
             if(product.stock > 0) return true;
             return false;
         });
@@ -82,31 +82,11 @@ export class Store {
     }
 
     getProduct(productId) {
-        console.log(this.products)
         return this.products.find(item => item.id == productId)
     }
 
-    addProductReview(productId, name, rating, text) {
-        let product = this.getProduct(productId);
-        if (!product) {
-            throw new Error('Product not found');
-        }
-
-        product.addReview(name, rating, text);
-
-        // if (!product.reviews) {
-        //     product.reviews = [];
-        // }
-
-        // product.reviews.push({name, rating, text});
-    }
-
-    getProductReviews(productId) {
-        let product = this.getProduct(productId);
-        if (!product) {
-            throw new Error('Product not found');
-        }
-        return product.reviews || [];
+    getProducts() {
+        return this.products;
     }
 
     createProduct(name, price, {x,y,z}, stock) {
@@ -115,22 +95,7 @@ export class Store {
         )
     }
 
-
     //----------------------------------
-    cleanupParameters(parameters) {
-        let {id, name, price, dimensions, inStock} = parameters;
-        price = { min: 0, max: price.max || Infinity };
-        dimensions = {
-            x: { min: 0, max: dimensions.x.max || Infinity },
-            y: { min: 0, max: dimensions.y.max || Infinity },
-            z: { min: 0, max: dimensions.z.max || Infinity },
-        };
-        inStock = inStock == true;
-
-        return {id, name, price, dimensions, inStock};
-    }
-
-
     firstAvailableId() {
         const used = new Set(this.products.map(item => item.id));
 
