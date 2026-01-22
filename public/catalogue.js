@@ -131,7 +131,7 @@ async function createProduct() {
         }
     }
 
-    fetch('/api/create-product', {
+    fetch('/api/new-product', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

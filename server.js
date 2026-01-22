@@ -45,7 +45,7 @@ app.get('/api/catalogue', (req, res) => {
   res.status(200).json(products);
 });
 
-app.post('/api/add-review', (req, res) => {
+app.post('/api/new-review', (req, res) => {
   const { productId, name, rating, text } = req.body;
   
   const product = store.getProduct(productId);
@@ -53,7 +53,7 @@ app.post('/api/add-review', (req, res) => {
   res.status(200);
 });
 
-app.post('/api/create-product', (req, res) => {
+app.post('/api/new-product', (req, res) => {
   const { name, price, dimensions: {x,y,z}, stock } = req.body;
   store.createProduct(name, price, {x,y,z}, stock);
   res.status(200);

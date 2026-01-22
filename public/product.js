@@ -83,7 +83,7 @@ async function createReview() {
         text: text,
     }
 
-    fetch("/api/add-review", {
+    fetch("/api/new-review", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
