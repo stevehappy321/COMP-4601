@@ -15,11 +15,11 @@ app.use(express.json());
 app.use(express.static('public'));  // serve static HTML & JS files
 
 const store = await Store.newInstance( 
-  path.join(__dirname, 'backend', 'store.db'), 
+  path.join(__dirname, 'sql', 'store.db'), 
   path.join(__dirname, 'backend', 'products.json')
 );
 
-//PAGES
+//PAGES-------------------------------
 app.get('/', (req, res) => {
   res.redirect('catalogue')
 })
@@ -35,7 +35,8 @@ app.get('/product/:productId', (req, res) => {
 });
 
 
-//APIS
+
+//APIS-------------------------------
 app.get('/api/products', async (req, res) => {
   const { id, name, price, x, y, z, inStockOnly } = req.query;
   let products = await store.filterProducts({ id, name, price, x, y, z, inStockOnly });
@@ -49,7 +50,7 @@ app.get('/api/products', async (req, res) => {
 
 app.post('/api/products', async (req, res) => {
   const { name, price, dimensions: {x,y,z}, stock } = req.body;
-  await store.createProduct(name, price, {x,y,z}, stock);
+  await store.addProduct(name, price, {x,y,z}, stock);
   res.status(200);
 });
 
@@ -73,6 +74,17 @@ app.post('/api/reviews', async (req, res) => {
 });
 
 
+app.get('/orders/:productId'), async (req, res) => {
+  const productId = req.params.productId;
+  const orders = await store.getOrders({id: productId});
+  res.status(200).json(orders);
+};
+
+app.post('/orders', async (req, res) => {
+  const { cart } = req.body; // [{productId, quantity}, ...]
+  await store.addOrder("", cart);
+  res.status(200);
+});
 
 
 
