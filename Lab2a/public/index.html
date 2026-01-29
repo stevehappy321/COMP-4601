@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+  <title>COMP 4601 Lab 2</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <h1>Lab 2 Frontend</h1>
+  <section>
+    <h2>Search Products</h2>
+    <div class="row">
+      <label for="sName">Name contains</label>
+      <input id="sName" placeholder="Try: chair" />
+    </div>
+    <div class="row">
+      <label for="sStock">Stock filter</label>
+      <select id="sStock">
+        <option value="all">All</option>
+        <option value="inStock">In Stock</option>
+      </select>
+    </div>
+    <button onclick="search()">Search</button>
+    <pre id="searchOut"></pre>
+  </section>
+
+  <section>
+    <h2>Create Product</h2>
+    <div class="row"><label>Name</label><input id="cName" /></div>
+    <div class="row"><label>Price</label><input id="cPrice" type="number" step="1" min="0" /></div>
+    <div class="row"><label>X Dimension</label><input id="cX" type="number" step="1" min="0" /></div>
+    <div class="row"><label>Y Dimension</label><input id="cY" type="number" step="1" min="0" /></div>
+    <div class="row"><label>Z Dimension</label><input id="cZ" type="number" step="1" min="0" /></div>
+    <div class="row"><label>Stock</label><input id="cStock" type="number" step="1" min="0" /></div>
+    <button onclick="createProduct()">Create</button>
+    <pre id="createOut"></pre>
+  </section>
+
+  <section>
+    <h2>View Product by ID</h2>
+    <div class="row">
+      <label for="viewId">Product ID</label>
+      <input id="viewId" type="number" min="0" />
+    </div>
+    <button onclick="viewJSON()">View (JSON)</button>
+    <button onclick="openHTML()">Open (HTML)</button>
+    <pre id="viewOut"></pre>
+  </section>
+
+  <section>
+    <h2>Add Review (1-10)</h2>
+    <div class="row"><label>Product ID</label><input id="rId" type="number" min="0" /></div>
+    <div class="row"><label>Rating</label><input id="rRating" type="number" min="1" max="10" /></div>
+    <button onclick="addReview()">Add review</button>
+    <pre id="reviewOut"></pre>
+  </section>
+
+  <section>
+    <h2>View Reviews for Product ID</h2>
+    <div class="row"><label>Product ID</label><input id="rvId" type="number" min="0" /></div>
+    <button onclick="reviewsJSON()">View (JSON)</button>
+    <button onclick="reviewsHTML()">Open (HTML)</button>
+    <pre id="reviewsOut"></pre>
+  </section>
+
+  <script>
+    async function search() {
+      const name = document.getElementById("sName").value.trim();
+      const stock = document.getElementById("sStock").value;
+      const url = new URL("/products", window.location.origin);
+      if (name) url.searchParams.set("name", name);
+      url.searchParams.set("stock", stock);
+
+      const res = await fetch(url.toString(), { headers: { "Accept": "application/json" } });
+      const data = await res.json();
+      document.getElementById("searchOut").textContent = JSON.stringify(data, null, 2);
+    }
+
+    async function viewJSON() {
+      const id = document.getElementById("viewId").value;
+      const res = await fetch(`/products/${id}`, { headers: { "Accept": "application/json" } });
+      const text = await res.text();
+      try {
+        document.getElementById("viewOut").textContent = JSON.stringify(JSON.parse(text), null, 2);
+      } catch {
+        document.getElementById("viewOut").textContent = text;
+      }
+    }
+
+    function openHTML() {
+      const id = document.getElementById("viewId").value;
+      window.open(`/products/${id}?format=html`);
+    }
+
+    async function createProduct() {
+      const body = {
+        name: document.getElementById("cName").value,
+        price: Number(document.getElementById("cPrice").value),
+        dimensions: {
+          x: Number(document.getElementById("cX").value),
+          y: Number(document.getElementById("cY").value),
+          z: Number(document.getElementById("cZ").value)
+        },
+        stock: Number(document.getElementById("cStock").value)
+      };
+
+      const res = await fetch("/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json().catch(() => ({}));
+      document.getElementById("createOut").textContent =
+        `HTTP ${res.status}\n` + JSON.stringify(data, null, 2);
+    }
+
+    async function addReview() {
+      const id = document.getElementById("rId").value;
+      const rating = Number(document.getElementById("rRating").value);
+
+      const res = await fetch(`/products/${id}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ rating })
+      });
+
+      const data = await res.json().catch(() => ({}));
+      document.getElementById("reviewOut").textContent =
+        `HTTP ${res.status}\n` + JSON.stringify(data, null, 2);
+    }
+
+    async function reviewsJSON() {
+      const id = document.getElementById("rvId").value;
+      const res = await fetch(`/products/${id}/reviews`, { headers: { "Accept": "application/json" } });
+      const text = await res.text();
+      try {
+        document.getElementById("reviewsOut").textContent = JSON.stringify(JSON.parse(text), null, 2);
+      } catch {
+        document.getElementById("reviewsOut").textContent = text;
+      }
+    }
+
+    function reviewsHTML() {
+      const id = document.getElementById("rvId").value;
+      window.open(`/products/${id}/reviews?format=html`);
+    }
+  </script>
+</body>
+</html>
