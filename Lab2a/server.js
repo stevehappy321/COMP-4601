@@ -62,6 +62,26 @@ async function seedProductsIfNeeded() {
 }
 
 //Product routes
+app.post("/products", async (req, res) => {
+  const { name, price, dimensions: {x,y,z}, stock } = req.body;
+
+  if (!name || typeof price !== "number" || typeof stock !== "number" || !x || !y || !z) {
+    return res.status(409).json({ error: "Invalid product format" });
+  }
+
+  const product = {
+    id: await getNextId("products"),
+    name,
+    price,
+    dimensions: {
+      x,y,z
+    },
+    stock,
+  };
+  await productsCol.insertOne(product);
+  res.status(201).json(product);
+});
+
 app.get("/products", async (req, res) => {
   const products = await productsCol.find().toArray();
   products.forEach(p => {
@@ -103,6 +123,15 @@ app.post("/products/:id/reviews", async (req, res) => {
   res.status(201).json(review);
 });
 
+app.get("/products/:id/reviews", async (req, res) => {
+  const id = Number(req.params.id);
+  const product = await productsCol.findOne({ id });
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" });
+  }
+  res.json(product.reviews || []);
+});
+
 //Order route, lab 2 addition
 
 app.post("/orders", async (req, res) => {
@@ -132,9 +161,7 @@ app.post("/orders", async (req, res) => {
     total += product.price * item.quantity;
     purchasedItems.push({
       productId: product.id,
-      // name: product.name,
       quantity: item.quantity,
-      // price: product.price
     });
   }
 

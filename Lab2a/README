@@ -1,6 +1,8 @@
-TODO
-
 LAB 2
+Setup:
+npm i mongodb
+npm install
+npm start
 
 Steven Wu
 Ryan Mastin
