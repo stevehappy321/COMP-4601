@@ -132,9 +132,9 @@ app.post("/orders", async (req, res) => {
     total += product.price * item.quantity;
     purchasedItems.push({
       productId: product.id,
-      name: product.name,
+      // name: product.name,
       quantity: item.quantity,
-      price: product.price
+      // price: product.price
     });
   }
 
