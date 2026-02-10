@@ -1,14 +1,20 @@
 {
-  "name": "comp4601-lab1",
+  "name": "4601-lab-3---ryan-mastin-steven-wu",
   "version": "1.0.0",
-  "main": "server.js",
+  "description": "",
+  "main": "crawl.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
+    "cheerio": "^1.2.0",
     "crawler": "^2.0.2",
-    "express": "^4.19.2",
-    "mongodb": "^7.0.0"
+    "express": "^5.2.1",
+    "mongodb": "^7.1.0",
+    "undici": "^7.21.0"
   }
 }
