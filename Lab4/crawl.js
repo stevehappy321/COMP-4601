@@ -53,7 +53,7 @@ function defaultDatasetRootFromSeed(seedUrl) {
   return `${u.origin}${dir}`;
 }
 
-async function crawlDataset({ pages, datasetName, seedUrl, maxPages = Infinity }) {
+async function crawlDataset({ pages, vocab, datasetName, seedUrl, maxPages = Infinity }) {
   // Use configured allowed prefixes if provided; otherwise fall back to the seed directory
   const allowedPrefixes =
     ALLOWED_PREFIXES?.[datasetName] ?? [defaultDatasetRootFromSeed(seedUrl)];
@@ -123,6 +123,17 @@ async function crawlDataset({ pages, datasetName, seedUrl, maxPages = Infinity }
           { upsert: true }
         );
 
+        const bulkOps = html.trim().split(/\s+/).map(word => ({
+          updateOne: {
+            filter: { _id: word },
+            update: { $inc: { count: 1 } },
+            upsert: true
+          }
+        }) );
+
+        await vocab.bulkWrite(bulkOps);
+        
+
         // Update incoming edges for targets
         if (outgoing.length > 0) {
           const bulk = pages.initializeUnorderedBulkOp();
@@ -177,7 +188,7 @@ async function main() {
   const maxPagesArg = process.argv.find((a) => a.startsWith("--max="));
   const maxPages = maxPagesArg ? Number(maxPagesArg.split("=")[1]) : Infinity;
 
-  const { client, pages } = await connectDb();
+  const { client, pages, vocab } = await connectDb();
 
   try {
     const entries =
@@ -200,6 +211,7 @@ async function main() {
 
       const result = await crawlDataset({
         pages,
+        vocab,
         datasetName,
         seedUrl,
         maxPages,

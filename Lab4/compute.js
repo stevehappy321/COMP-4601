@@ -18,57 +18,53 @@ export function tfidf_w_d(word, document, documents) {
   return Math.log2(1+tf) * idf;
 }
 
-export function buildQueryVector(query, documents) {
-  const terms = query.trim().split(/\s+/);
-  const vector = {};
+function v_q(query, documents, V) {
+  let vec = [];
 
-  for (const word of terms) {
-    vector[word] = tfidf_w_d(word, query, documents);
+  for (const v of V) {
+    vec.push(tfidf_w_d(v, query, documents));
   }
 
-  const magnitude = Math.sqrt(
-    Object.values(vector).reduce((sum, v) => sum + v * v, 0)
-  );
+  let magnitude = Math.sqrt(vec.reduce((sum, val) => sum + (val * val), 0));
 
-  return { vector, magnitude, terms };
+  return {vec, magnitude};
 }
 
-function mag_d(doc, documents) {
-  const words = doc.content.trim().split(/\s+/);
-  const uniqueWords = [...new Set(words)];
+function v_d(document, documents, V) {
+  let vec = [];
 
-  let sum = 0;
-
-  for (const word of uniqueWords) {
-    const tfidf = tfidf_w_d(word, doc.content, documents);
-    sum += tfidf * tfidf;
+  for (const v of V) {
+    vec.push(tfidf_w_d(v, document, documents));
   }
 
-  return Math.sqrt(sum);
+  let magnitude = Math.sqrt(vec.reduce((sum, val) => sum + (val * val), 0));
+  
+  return {vec, magnitude};
 }
 
-export function computeCosine(doc, queryData, documents) {
-  const { vector: queryVector, magnitude: queryMagnitude, terms } = queryData;
+export function computeCosine(query, doc, docs, V) {
+  const { vec: q_vec, magnitude: q_magnitude } = v_q(query, docs.map(d => d.content), V);
+  const { vec: d_vec, magnitude: d_magnitude } = v_d(doc.content, docs.map(d => d.content), V);
 
-  const docVector = {};
-  let dotProduct = 0;
+  const dot = dotProduct(q_vec, d_vec);
+  const scalar = q_magnitude * d_magnitude;
 
-  for (const word of terms) {
-    const tfidf = tfidf_w_d(word, doc.content, documents);
-    docVector[word] = tfidf;
-    dotProduct += tfidf * (queryVector[word] || 0);
-  }
-
-  const docMagnitude = mag_d(doc, documents);
-
-  const cosine =
-    queryMagnitude === 0 || docMagnitude === 0
-      ? 0
-      : dotProduct / (queryMagnitude * docMagnitude);
+  const cosine = scalar === 0 ? 0 : dot / scalar;
 
   return {
     url: doc.origUrl,
     score: cosine,
-    points: docVector
   };
+}
+
+function dotProduct(vector1, vector2) {
+  if (vector1.length !== vector2.length) {
+    throw new Error("Vectors must be of the same length to calculate the dot product.");
+  }
+
+  let result = 0;
+  for (let i = 0; i < vector1.length; i++) {
+    result += vector1[i] * vector2[i];
+  }
+  return result;
 }

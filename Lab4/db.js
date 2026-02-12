@@ -11,11 +11,14 @@ export async function connectDb() {
   // MongoDB creates the DB automatically on first write
   const db = client.db(DB_NAME);
 
-  // Explicitly create collection if it doesn't exist
-  const collections = await db.listCollections({ name: "pages" }).toArray();
-  if (collections.length === 0) {
-    await db.createCollection("pages");
+  // create pages collection if not exist
+  (await db.listCollections({ name: "pages" }).toArray().length === 0) ? await db.createCollection("pages") : () => {};
+
+  // delete vocab if exists, then recreate
+  if (await db.listCollections({ name: "vocab" }).toArray().length !== 0) {
+    await db.dropCollection("vocab");
   }
+  await db.createCollection("vocab");
 
   const pages = db.collection("pages");
 
@@ -29,7 +32,8 @@ export async function connectDb() {
     { dataset: 1, incomingCount: -1 }
   );
 
-  console.log(`Connected to MongoDB database: ${DB_NAME}`);
+  const vocab = db.collection("vocab");
 
-  return { client, db, pages };
+  console.log(`Connected to MongoDB database: ${DB_NAME}`);
+  return { client, db, pages, vocab };
 }
