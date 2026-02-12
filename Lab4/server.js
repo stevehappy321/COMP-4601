@@ -1,7 +1,7 @@
 // server.js
 import express from "express";
 import { MongoClient } from "mongodb";
-import { idf_w, tf_w_d, tfidf_w_d } from "./compute.js";
+import { idf_w, tf_w_d, tfidf_w_d, buildQueryVector, computeCosine } from "./compute.js";
 
 const app = express();
 app.use(express.json());
@@ -90,10 +90,29 @@ app.get("/:dataset/page", async (req, res) => {
 });
 
 app.get("/:datasetName", async (req, res) => {
-  // get q param
   const { datasetName } = req.params;
   const q = req.query.q;
+
+  const docs = await pages.find({ dataset: datasetName }).toArray();
+  const docsContents = docs.map(d => d.content);
+
+  const queryData = buildQueryVector(q, docsContents);
+  console.log("Query vector:", queryData.vector);
+
+  const results = [];
+
+  for (const doc of docs) {
+    results.push(
+      computeCosine(doc, queryData, docsContents)
+    );
+  }
+
+  results.sort((a, b) => b.score - a.score);
+
+  res.status(200).json({ results });
 })
+
+
 
 // --- Startup ---
 async function start() {
