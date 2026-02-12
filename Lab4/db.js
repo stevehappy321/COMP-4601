@@ -14,12 +14,6 @@ export async function connectDb() {
   // create pages collection if not exist
   (await db.listCollections({ name: "pages" }).toArray().length === 0) ? await db.createCollection("pages") : () => {};
 
-  // delete vocab if exists, then recreate
-  if (await db.listCollections({ name: "vocab" }).toArray().length !== 0) {
-    await db.dropCollection("vocab");
-  }
-  await db.createCollection("vocab");
-
   const pages = db.collection("pages");
 
   // Required indexes
@@ -32,8 +26,6 @@ export async function connectDb() {
     { dataset: 1, incomingCount: -1 }
   );
 
-  const vocab = db.collection("vocab");
-
   console.log(`Connected to MongoDB database: ${DB_NAME}`);
-  return { client, db, pages, vocab };
+  return { client, db, pages };
 }

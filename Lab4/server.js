@@ -11,13 +11,12 @@ const PORT = process.env.PORT || 3000;
 const MONGO_URL = process.env.MONGO_URL || "mongodb://localhost:27017";
 const DB_NAME = process.env.MONGO_DB || "comp4601_lab3";
 const COLLECTION_PAGES = "pages";
-const COLLECTION_VOCAB = "vocab";
 
 // Your registration info
 const SERVER_NAME = "FlambardGreenhill8260";
 
 let client;
-let pages, vocab;
+let pages;
 
 function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
@@ -95,15 +94,12 @@ app.get("/:datasetName", async (req, res) => {
   const q = req.query.q;
 
   const docs = await pages.find({ dataset: datasetName }).toArray();
-  const V = await vocab.find({}).toArray().then((arr) => arr.map((d) => d._id));
-
-  console.log(V)
 
   const results = [];
 
   for (const doc of docs) {
     results.push(
-      computeCosine(q, doc, docs, V)
+      computeCosine(q, doc, docs)
     );
   }
 
@@ -121,7 +117,6 @@ async function start() {
 
   const db = client.db(DB_NAME);
   pages = db.collection(COLLECTION_PAGES);
-  vocab = db.collection(COLLECTION_VOCAB);
 
   console.log(`Connected to MongoDB database: ${DB_NAME}`);
   app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
