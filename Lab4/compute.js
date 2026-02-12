@@ -21,7 +21,7 @@ export function tfidf_w_d(word, document, documents) {
 function v_q(query, documents, V) {
   let vec = [];
 
-  for (const v of V) {
+  for (const v of query.split(/\s+/)) {
     vec.push(tfidf_w_d(v, query, documents));
   }
 
@@ -30,10 +30,10 @@ function v_q(query, documents, V) {
   return {vec, magnitude};
 }
 
-function v_d(document, documents, V) {
+function v_d(document, documents, V, query) {
   let vec = [];
 
-  for (const v of V) {
+  for (const v of query.split(/\s+/)) {
     vec.push(tfidf_w_d(v, document, documents));
   }
 
@@ -44,7 +44,7 @@ function v_d(document, documents, V) {
 
 export function computeCosine(query, doc, docs, V) {
   const { vec: q_vec, magnitude: q_magnitude } = v_q(query, docs.map(d => d.content), V);
-  const { vec: d_vec, magnitude: d_magnitude } = v_d(doc.content, docs.map(d => d.content), V);
+  const { vec: d_vec, magnitude: d_magnitude } = v_d(doc.content, docs.map(d => d.content), V, query);
 
   const dot = dotProduct(q_vec, d_vec);
   const scalar = q_magnitude * d_magnitude;
