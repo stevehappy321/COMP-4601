@@ -1,7 +1,7 @@
 // server.js
 import express from "express";
 import { MongoClient } from "mongodb";
-import { computeCosine } from "./compute.js";
+import { cosineResult, v_q } from "./compute.js";
 
 const app = express();
 app.use(express.json());
@@ -89,24 +89,31 @@ app.get("/:dataset/page", async (req, res) => {
   }
 });
 
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).end(); // No Content
+});
+
 app.get("/:datasetName", async (req, res) => {
   const { datasetName } = req.params;
   const q = req.query.q;
 
   const docs = await pages.find({ dataset: datasetName }).toArray();
+  
+  const result = [];
 
-  const results = [];
+  const { vec: q_vec, magnitude: q_magnitude } = v_q(q, docs.map(d => d.content));
 
   for (const doc of docs) {
-    results.push(
-      computeCosine(q, doc, docs)
+    result.push(
+      cosineResult(q, doc, docs, {q_vec, q_magnitude})
     );
   }
 
-  results.sort((a, b) => b.score - a.score);
+  result.sort((a, b) => b.score - a.score);
 
-  res.status(200).json({ results });
+  res.status(200).json({ result });
 })
+
 
 
 

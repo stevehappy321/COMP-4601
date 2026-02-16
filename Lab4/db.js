@@ -11,7 +11,7 @@ export async function connectDb() {
   // MongoDB creates the DB automatically on first write
   const db = client.db(DB_NAME);
 
-  // create pages collection if not exist
+  // create pages collection if not exists
   (await db.listCollections({ name: "pages" }).toArray().length === 0) ? await db.createCollection("pages") : () => {};
 
   const pages = db.collection("pages");
