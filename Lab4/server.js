@@ -103,15 +103,24 @@ app.get("/:datasetName", async (req, res) => {
 
   const { vec: q_vec, magnitude: q_magnitude } = v_q(q, docs.map(d => d.content));
 
+  const topK = [];
+  const K = 10;
+
   for (const doc of docs) {
-    result.push(
-      cosineResult(q, doc, docs, {q_vec, q_magnitude})
-    );
+    const scored = cosineResult(q, doc, docs, { q_vec, q_magnitude });
+
+    if (topK.length < K) {
+      topK.push(scored);
+      topK.sort((a, b) => a.score - b.score); // smallest first
+    } else if (scored.score > topK[0].score) {
+      topK[0] = scored;
+      topK.sort((a, b) => a.score - b.score);
+    }
   }
 
-  result.sort((a, b) => b.score - a.score);
-
-  res.status(200).json({ result: result.slice(0,10) });
+  res.status(200).json({
+    result: topK.sort((a, b) => b.score - a.score)
+  });
 })
 
 
