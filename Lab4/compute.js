@@ -4,6 +4,10 @@ function idf_w(word, documents) {
   const numDocsWithTerm = documents.filter((doc) =>
     doc.split(/\s+/).includes(word)
   ).length;
+
+  if (numDocsWithTerm === 0) {
+    return 0;
+  }
   
   return Math.max( 0, Math.log2(documents.length / (1 + numDocsWithTerm)) );
 }

@@ -98,7 +98,7 @@ app.get("/:datasetName", async (req, res) => {
   const q = req.query.q;
 
   const docs = await pages.find({ dataset: datasetName }).toArray();
-  
+
   const result = [];
 
   const { vec: q_vec, magnitude: q_magnitude } = v_q(q, docs.map(d => d.content));
@@ -111,7 +111,7 @@ app.get("/:datasetName", async (req, res) => {
 
   result.sort((a, b) => b.score - a.score);
 
-  res.status(200).json({ result });
+  res.status(200).json({ result: result.slice(0,10) });
 })
 
 
