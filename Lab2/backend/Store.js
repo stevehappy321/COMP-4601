@@ -41,7 +41,7 @@ export class Store {
                 }
                 return products;
             } else {
-                return [new Product()]
+                return [];
             }
 
         } catch (error) {
@@ -54,12 +54,21 @@ export class Store {
         return await this.db.getProducts(filter);
     }
 
-    async createProduct(name, price, {x,y,z}, stock) {
+    async getOrders(filter) {
+        return await this.db.getOrders(filter);
+    }
+
+    //----------------------------------
+    async addProduct(name, price, {x,y,z}, stock) {
         await this.db.addProduct(name, price, {x,y,z}, stock);
     }
 
     async addProductReview(productId, name, rating, comment) {
         await this.db.addProductReview(productId, name, rating, comment);
+    }
+
+    async addOrder(name, cart) {
+        await this.db.addOrder(name, cart);
     }
 
     //----------------------------------
