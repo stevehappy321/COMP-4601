@@ -1,12 +1,8 @@
 // server.js
 import express from "express";
 import { MongoClient } from "mongodb";
-<<<<<<< Updated upstream
-import { cosineResult, v_q } from "./compute.js";
-=======
 import { cosineResult, v_q, pContent } from "./compute.js";
 import { precomputePageRanks } from "./pagerank.js";
->>>>>>> Stashed changes
 
 const app = express();
 app.use(express.json());
@@ -20,11 +16,6 @@ const COLLECTION_PAGES = "pages";
 // Your registration info
 const SERVER_NAME = "FlambardGreenhill8260";
 
-<<<<<<< Updated upstream
-let client;
-let pages;
-
-=======
 // Datasets to compute PageRank for
 const DATASETS = ["tinyfruits", "fruits100", "fruitsA"];
 
@@ -63,13 +54,10 @@ function idf_w_fast(word, docs) {
   return Math.max(0, Math.log2(docs.length / (1 + numDocsWithTerm)));
 }
 
->>>>>>> Stashed changes
 function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
 }
 
-<<<<<<< Updated upstream
-=======
 // Pre-compute and cache document content for a dataset
 async function getDatasetDocuments(datasetName) {
   // Check cache first
@@ -101,7 +89,6 @@ async function getDatasetDocuments(datasetName) {
   return docsWithContent;
 }
 
->>>>>>> Stashed changes
 // ---------------- INFO (required by grading server) ----------------
 app.get("/info", (req, res) => {
   res.json({
@@ -109,8 +96,6 @@ app.get("/info", (req, res) => {
   });
 });
 
-<<<<<<< Updated upstream
-=======
 // ---------------- PAGERANKS (Lab 5) ----------------
 app.get("/pageranks", (req, res) => {
   try {
@@ -144,7 +129,6 @@ app.get("/pageranks", (req, res) => {
   }
 });
 
->>>>>>> Stashed changes
 
 app.get("/:dataset/popular", async (req, res) => {
   try {
@@ -210,29 +194,6 @@ app.get("/favicon.ico", (req, res) => {
 });
 
 app.get("/:datasetName", async (req, res) => {
-<<<<<<< Updated upstream
-  const { datasetName } = req.params;
-  const q = req.query.q;
-
-  const docs = await pages.find({ dataset: datasetName }).toArray();
-
-  const result = [];
-
-  const { vec: q_vec, magnitude: q_magnitude } = v_q(q, docs.map(d => d.content));
-
-  for (const doc of docs) {
-    result.push(
-      cosineResult(q, doc, docs, {q_vec, q_magnitude})
-    );
-  }
-
-  result.sort((a, b) => b.score - a.score);
-
-  const top10 = result.slice(0, 10);
-
-  res.status(200).json({ result: top10 });
-})
-=======
   try {
     const { datasetName } = req.params;
     const q = req.query.q;
@@ -305,7 +266,6 @@ app.get("/:datasetName", async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
->>>>>>> Stashed changes
 
 
 
@@ -319,15 +279,12 @@ async function start() {
   pages = db.collection(COLLECTION_PAGES);
 
   console.log(`Connected to MongoDB database: ${DB_NAME}`);
-<<<<<<< Updated upstream
-=======
   
   // Pre-compute PageRank values for all datasets
   console.log("Pre-computing PageRank values...");
   pageRankCache = await precomputePageRanks(pages, DATASETS);
   console.log("PageRank pre-computation complete!");
   
->>>>>>> Stashed changes
   app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 }
 
@@ -342,10 +299,4 @@ process.on("SIGINT", async () => {
 start().catch((err) => {
   console.error("Failed to start server:", err);
   process.exit(1);
-<<<<<<< Updated upstream
 });
-
-
-=======
-});
->>>>>>> Stashed changes
