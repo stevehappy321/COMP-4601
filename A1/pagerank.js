@@ -10,81 +10,118 @@
  */
 export function calculatePageRank(docs, alpha = 0.1, epsilon = 0.0001) {
   const n = docs.length;
-  
+
+  console.log("----- PageRank Calculation Starting -----");
+  console.log(`Total pages: ${n}`);
+  console.log(`Alpha (damping factor): ${alpha}`);
+  console.log(`Epsilon (convergence threshold): ${epsilon}`);
+
   if (n === 0) {
+    console.log("No documents provided. Returning empty PageRank map.");
     return new Map();
   }
 
   // Create URL to index mapping
   const urlToIndex = new Map();
   const indexToUrl = new Map();
-  
+
   docs.forEach((doc, i) => {
     urlToIndex.set(doc.origUrl, i);
     indexToUrl.set(i, doc.origUrl);
   });
 
+  console.log("URL mapping created.");
+
   // Build adjacency information
-  // outgoingCount[i] = number of outgoing links from page i
   const outgoingCount = new Array(n).fill(0);
-  
-  // For each page, get its outgoing links
+
   docs.forEach((doc, i) => {
     if (doc.outgoing && Array.isArray(doc.outgoing)) {
       outgoingCount[i] = doc.outgoing.length;
     }
   });
 
-  // Initialize PageRank values uniformly
+  console.log("Outgoing link counts:");
+  // docs.forEach((doc, i) => {
+  //   console.log(`  ${doc.origUrl} -> ${outgoingCount[i]} outgoing links`);
+  // });
+
+  // Initialize PageRank values
   let pr = new Array(n).fill(1.0 / n);
   let pr_next = new Array(n).fill(0);
 
+  console.log("Initial PageRank values:");
+  // docs.forEach((doc, i) => {
+  //   console.log(`  ${doc.origUrl}: ${pr[i]}`);
+  // });
+
   let iterations = 0;
-  const maxIterations = 1000; // Safety limit
+  const maxIterations = 1000;
 
   while (iterations < maxIterations) {
-    // Calculate new PageRank values
+    // console.log(`\n--- Iteration ${iterations + 1} ---`);
+
     for (let i = 0; i < n; i++) {
       let sum = 0;
-      
-      // Get all pages that link to page i
       const currentUrl = docs[i].origUrl;
-      
+
+      // console.log(`Calculating PR for: ${currentUrl}`);
+
       for (let j = 0; j < n; j++) {
         const sourceDoc = docs[j];
-        
-        // Check if page j links to page i
+
         if (sourceDoc.outgoing && Array.isArray(sourceDoc.outgoing)) {
           if (sourceDoc.outgoing.includes(currentUrl)) {
-            // Page j links to page i
             const outCount = outgoingCount[j];
+
             if (outCount > 0) {
-              sum += pr[j] / outCount;
+              const contribution = pr[j] / outCount;
+              sum += contribution;
+
+              // console.log(
+              //   `  Link from ${sourceDoc.origUrl} contributes ${contribution}`
+              // );
             }
           }
         }
       }
-      
-      // PageRank formula: PR(i) = alpha/n + (1-alpha) * sum
+
       pr_next[i] = alpha / n + (1 - alpha) * sum;
+
+      // console.log(
+      //   `  New PR(${currentUrl}) = ${pr_next[i]} (sum=${sum})`
+      // );
     }
 
-    // Calculate Euclidean distance between pr and pr_next
+    // Calculate Euclidean distance
     let distance = 0;
+
     for (let i = 0; i < n; i++) {
       const diff = pr_next[i] - pr[i];
       distance += diff * diff;
     }
+
     distance = Math.sqrt(distance);
 
-    // Check for convergence
+    console.log(`Iteration ${iterations + 1} distance: ${distance}`);
+
+    // Check convergence
     if (distance < epsilon) {
-      console.log(`PageRank converged after ${iterations + 1} iterations (distance: ${distance})`);
+      console.log(
+        `PageRank converged after ${iterations + 1} iterations (distance: ${distance})`
+      );
       pr = pr_next;
       break;
     }
 
-    // Update for next iteration
+    // Snapshot every 5 iterations
+    if ((iterations + 1) % 5 === 0) {
+      // console.log(`PageRank snapshot at iteration ${iterations + 1}:`);
+      // docs.forEach((doc, i) => {
+      //   console.log(`  ${doc.origUrl}: ${pr_next[i]}`);
+      // });
+    }
+
     pr = pr_next;
     pr_next = new Array(n).fill(0);
     iterations++;
@@ -94,11 +131,18 @@ export function calculatePageRank(docs, alpha = 0.1, epsilon = 0.0001) {
     console.warn(`PageRank did not converge after ${maxIterations} iterations`);
   }
 
-  // Create result map
+  console.log("Final PageRank values:");
+
   const pageRankMap = new Map();
+
   for (let i = 0; i < n; i++) {
-    pageRankMap.set(indexToUrl.get(i), pr[i]);
+    const url = indexToUrl.get(i);
+    const rank = pr[i];
+    console.log(`  ${url}: ${rank}`);
+    pageRankMap.set(url, rank);
   }
+
+  console.log("----- PageRank Calculation Complete -----");
 
   return pageRankMap;
 }

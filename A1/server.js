@@ -1,14 +1,15 @@
 // server.js
 import express from "express";
 import { MongoClient } from "mongodb";
-import { cosineResult, v_q, pContent, extractTitle, calculateWordFrequency } from "./compute.js";
+import { pContent, extractTitle, calculateWordFrequency } from "./compute.js";
 import { precomputePageRanks } from "./pagerank.js";
+import { performance } from "perf_hooks";
 
 const app = express();
 app.use(express.json());
 
 // Serve static files from public directory
-app.use(express.static('public'));
+app.use(express.static("public"));
 
 // --- Config ---
 const PORT = process.env.PORT || 3000;
@@ -20,76 +21,118 @@ const COLLECTION_PAGES = "pages";
 const SERVER_NAME = "FlambardGreenhill8260";
 
 // Datasets to compute PageRank for
-const DATASETS = ["tinyfruits", "fruits100", "fruitsA"];
+const DATASETS = ["tinyfruits", "fruits100", "fruitsA", "personal"];
 
 let client;
 let pages;
 
-// Cache for pre-computed document content
+// Cache for pre-computed search indexes per dataset
+// Map(datasetName -> { N, docs: [...], df: Map, postings: Map })
 const documentCache = new Map();
 
 // Cache for pre-computed PageRank values
 // Map of dataset -> Map(URL -> PageRank)
 let pageRankCache = new Map();
 
-// Inline helper functions for speed
+// ----------------- Helpers -----------------
+
+// Keep the exact same tokenization behavior you already had (whitespace split)
 function normalizeText(text) {
-  return text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-}
-
-function tf_w_d(word, docText, docsContent) {
-  const words = normalizeText(docText);
-  const wordCount = words.filter((w) => w === word).length;
-  const totalWords = words.length;
-  
-  if (totalWords === 0) return 0;
-  return wordCount / totalWords;
-}
-
-function idf_w_fast(word, docs) {
-  // Use pre-computed normalized words
-  const numDocsWithTerm = docs.filter(doc => doc.normalizedWords.includes(word)).length;
-
-  if (numDocsWithTerm === 0) {
-    return 0;
-  }
-  
-  return Math.max(0, Math.log2(docs.length / (1 + numDocsWithTerm)));
+  return (text || "").toLowerCase().split(/\s+/).filter((w) => w.length > 0);
 }
 
 function baseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
 }
 
-// Pre-compute and cache document content for a dataset
-async function getDatasetDocuments(datasetName) {
-  // Check cache first
+function idfFromDf(df, N) {
+  // Same formula you used before: log2(N / (1 + df)), clamped at >= 0
+  if (!df || df <= 0) return 0;
+  return Math.max(0, Math.log2(N / (1 + df)));
+}
+
+function tfWeightFromCount(count, totalWords) {
+  if (!totalWords || totalWords <= 0 || !count) return 0;
+  const tf = count / totalWords;
+  return Math.log2(1 + tf);
+}
+
+function makeTermCounts(tokens) {
+  const tf = new Map();
+  for (const t of tokens) {
+    tf.set(t, (tf.get(t) || 0) + 1);
+  }
+  return tf;
+}
+
+// Build and cache an inverted index for a dataset
+async function getDatasetIndex(datasetName) {
   if (documentCache.has(datasetName)) {
     return documentCache.get(datasetName);
   }
 
-  console.log(`Loading and caching documents for dataset: ${datasetName}`);
-  const startTime = Date.now();
-  
+  console.log(`Loading & indexing documents for dataset: ${datasetName}`);
+  const t0 = performance.now();
+
   // Fetch all documents for this dataset
-  const docs = await pages.find({ dataset: datasetName }).toArray();
-  
-  // Pre-extract paragraph content and normalize
-  const docsWithContent = docs.map(doc => {
+  const rawDocs = await pages.find({ dataset: datasetName }).toArray();
+
+  const df = new Map();        // term -> document frequency
+  const postings = new Map();  // term -> [docIndex,...]
+
+  // Store only what search needs (saves RAM)
+  const docs = rawDocs.map((doc) => {
     const paragraphContent = pContent(doc.content);
+    const tokens = normalizeText(paragraphContent);
+    const tf = makeTermCounts(tokens);
+    const totalWords = tokens.length;
+
+    // Update df/postings using unique terms in this doc
+    const seen = new Set(tf.keys());
+    // We'll fill docIndex after we know it, so use a placeholder and patch below
     return {
-      ...doc,
-      paragraphContent,
-      normalizedWords: normalizeText(paragraphContent) // Pre-compute for speed
+      origUrl: doc.origUrl,
+      content: doc.content, // kept only because you return title in search + /page uses it; remove if you don't need it in search
+      title: extractTitle(doc.content),
+      paragraphContent, // optional: keep for debugging; not used in scoring
+      tf,
+      totalWords,
+      mag: 0, // TF-IDF magnitude (filled after df computed)
     };
   });
-  
-  // Cache the result
-  documentCache.set(datasetName, docsWithContent);
-  
-  const elapsed = Date.now() - startTime;
-  console.log(`Cached ${docsWithContent.length} documents for ${datasetName} in ${elapsed}ms`);
-  return docsWithContent;
+
+  // Build df + postings (needs doc indexes)
+  for (let i = 0; i < docs.length; i++) {
+    for (const term of docs[i].tf.keys()) {
+      df.set(term, (df.get(term) || 0) + 1);
+      if (!postings.has(term)) postings.set(term, []);
+      postings.get(term).push(i);
+    }
+  }
+
+  const N = docs.length;
+
+  // Precompute per-doc TF-IDF magnitude once:
+  // mag = sqrt(sum_over_terms( (log2(1+tf) * idf)^2 ))
+  for (let i = 0; i < docs.length; i++) {
+    let sumSq = 0;
+    for (const [term, count] of docs[i].tf.entries()) {
+      const idf = idfFromDf(df.get(term), N);
+      if (idf === 0) continue;
+      const tfw = tfWeightFromCount(count, docs[i].totalWords);
+      const w = tfw * idf;
+      sumSq += w * w;
+    }
+    docs[i].mag = Math.sqrt(sumSq);
+  }
+
+  const index = { N, docs, df, postings };
+  documentCache.set(datasetName, index);
+
+  const t1 = performance.now();
+  console.log(`Indexed ${N} documents for ${datasetName} in ${Math.round(t1 - t0)}ms`);
+
+  return index;
 }
 
 // ---------------- INFO (required by grading server) ----------------
@@ -123,15 +166,14 @@ app.get("/pageranks", (req, res) => {
     }
 
     const pageRank = pageRankCache.get(dataset).get(url);
-    
+
     // Return plain text representation of PageRank value
-    return res.type('text/plain').send(pageRank.toString());
+    return res.type("text/plain").send(pageRank.toString());
   } catch (err) {
     console.error("GET /pageranks error:", err);
     return res.status(500).send("Internal server error");
   }
 });
-
 
 app.get("/:dataset/popular", async (req, res) => {
   try {
@@ -190,7 +232,7 @@ app.get("/:dataset/page", async (req, res) => {
       pageRank: pageRank,
       incomingLinks: Array.isArray(doc.incoming) ? doc.incoming : [],
       outgoingLinks: Array.isArray(doc.outgoing) ? doc.outgoing : [],
-      wordFrequency: calculateWordFrequency(doc.content)
+      wordFrequency: calculateWordFrequency(doc.content),
     });
   } catch (err) {
     console.error("GET /:dataset/page error:", err);
@@ -202,100 +244,132 @@ app.get("/favicon.ico", (req, res) => {
   res.status(204).end(); // No Content
 });
 
+// ---------------- SEARCH (A1) ----------------
 app.get("/:datasetName", async (req, res) => {
   try {
     const { datasetName } = req.params;
     const q = req.query.q;
-    const boost = req.query.boost === 'true'; // Parse boolean (defaults to false)
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50); // 1-50, default 10
+    const boost = req.query.boost === "true";
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
 
     if (!q || typeof q !== "string") {
       return res.status(400).json({ error: "Missing query parameter: q" });
     }
 
-    // Get cached documents (or load and cache them)
-    const docs = await getDatasetDocuments(datasetName);
+    const t0 = performance.now();
 
-    if (docs.length === 0) {
+    const index = await getDatasetIndex(datasetName);
+    const { docs, df, postings, N } = index;
+
+    if (!docs || docs.length === 0) {
       return res.status(404).json({ error: "Dataset not found", result: [] });
     }
 
-    // Compute query vector inline (optimized)
-    const queryWords = normalizeText(q);
-    const uniqueQueryTerms = [...new Set(queryWords)];
-    
-    // Filter to only terms that appear in at least one document (using pre-computed words)
-    const validTerms = uniqueQueryTerms.filter(term => {
-      return docs.some(doc => doc.normalizedWords.includes(term));
-    });
-    
+    // Build query term counts once
+    const queryTokens = normalizeText(q);
+    const qTf = makeTermCounts(queryTokens);
+    const qTotal = queryTokens.length;
+
+    // Keep only terms that appear in at least one document (df > 0)
+    const validTerms = [];
+    for (const term of qTf.keys()) {
+      if ((df.get(term) || 0) > 0) validTerms.push(term);
+    }
+
     if (validTerms.length === 0) {
-      // Return 'limit' number of results even if no matches (A1 requirement)
-      const emptyResults = docs.slice(0, limit).map(doc => ({
+      // A1 requirement: still return 'limit' results even if nothing matches
+      const emptyResults = docs.slice(0, limit).map((doc) => ({
         url: doc.origUrl,
         score: 0,
-        title: extractTitle(doc.content),
-        pr: pageRankCache.get(datasetName)?.get(doc.origUrl) || 0
+        title: doc.title,
+        pr: pageRankCache.get(datasetName)?.get(doc.origUrl) || 0,
       }));
       return res.status(200).json({ result: emptyResults });
     }
-    
-    // Build query vector
-    const q_vec = [];
-    const docsContent = docs.map(d => d.paragraphContent);
-    
+
+    // Query weights + magnitude
+    const qWeight = new Map();
+    let qSumSq = 0;
     for (const term of validTerms) {
-      const tf = tf_w_d(term, q, docsContent);
-      const idf = idf_w_fast(term, docs);
-      q_vec.push(Math.log2(1 + tf) * idf);
+      const idf = idfFromDf(df.get(term), N);
+      const tfw = tfWeightFromCount(qTf.get(term), qTotal);
+      const w = tfw * idf;
+      if (w !== 0) {
+        qWeight.set(term, w);
+        qSumSq += w * w;
+      }
     }
-    
-    const q_magnitude = Math.sqrt(q_vec.reduce((sum, val) => sum + (val * val), 0));
+    const qMag = Math.sqrt(qSumSq);
 
-    // Compute cosine similarity for each document
-    const result = [];
-    for (const doc of docs) {
-      // Build document vector for this specific query's valid terms
-      const d_vec = [];
-      for (const term of validTerms) {
-        const tf = tf_w_d(term, doc.paragraphContent, docsContent);
-        const idf = idf_w_fast(term, docs);
-        d_vec.push(Math.log2(1 + tf) * idf);
+    // Candidate documents: union of postings lists for valid terms
+    const candidateSet = new Set();
+    for (const term of qWeight.keys()) {
+      const plist = postings.get(term);
+      if (!plist) continue;
+      for (const idx of plist) candidateSet.add(idx);
+    }
+
+    // Score candidates only
+    const results = [];
+    for (const idx of candidateSet) {
+      const doc = docs[idx];
+
+      // Dot product over query terms
+      let dot = 0;
+      for (const [term, qw] of qWeight.entries()) {
+        const count = doc.tf.get(term) || 0;
+        if (!count) continue;
+        const idf = idfFromDf(df.get(term), N);
+        if (idf === 0) continue;
+        const tfw = tfWeightFromCount(count, doc.totalWords);
+        dot += qw * (tfw * idf);
       }
-      
-      const d_magnitude = Math.sqrt(d_vec.reduce((sum, val) => sum + (val * val), 0));
-      const dot = q_vec.reduce((sum, val, i) => sum + val * d_vec[i], 0);
-      const scalar = q_magnitude * d_magnitude;
-      let cosine = scalar === 0 ? 0 : dot / scalar;
-      
+
+      const denom = qMag * doc.mag;
+      let cosine = denom === 0 ? 0 : dot / denom;
+
       const pr = pageRankCache.get(datasetName)?.get(doc.origUrl) || 0;
-      
-      // Apply PageRank boost if requested
       if (boost) {
-        cosine = cosine * (1 + pr * 10); // Boost formula: scale PR and add to score
+        cosine = cosine * (1 + pr * 10);
       }
 
-      result.push({
+      results.push({
         url: doc.origUrl,
         score: cosine,
-        title: extractTitle(doc.content),
-        pr: pr
+        title: doc.title,
+        pr: pr,
       });
     }
 
-    // Sort by score descending and take exactly 'limit' results
-    result.sort((a, b) => b.score - a.score);
-    const limitedResults = result.slice(0, limit);
+    // If we have fewer than limit, pad with 0-score docs (matches prior behavior)
+    if (results.length < limit) {
+      const already = new Set(results.map((r) => r.url));
+      for (const doc of docs) {
+        if (results.length >= limit) break;
+        if (already.has(doc.origUrl)) continue;
+        results.push({
+          url: doc.origUrl,
+          score: 0,
+          title: doc.title,
+          pr: pageRankCache.get(datasetName)?.get(doc.origUrl) || 0,
+        });
+      }
+    }
 
-    res.status(200).json({ result: limitedResults });
+    // Sort and limit
+    results.sort((a, b) => b.score - a.score);
+    const limitedResults = results.slice(0, limit);
+
+    const t1 = performance.now();
+    // Uncomment if you want per-request timing output:
+    // console.log(`Search ${datasetName} q="${q}" -> ${Math.round(t1 - t0)}ms (candidates=${candidateSet.size}, N=${N})`);
+
+    return res.status(200).json({ result: limitedResults });
   } catch (err) {
     console.error("GET /:datasetName error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
-
 
 // --- Startup ---
 async function start() {
@@ -306,12 +380,21 @@ async function start() {
   pages = db.collection(COLLECTION_PAGES);
 
   console.log(`Connected to MongoDB database: ${DB_NAME}`);
-  
+
+  // Helpful DB indexes (speeds /page and initial loads)
+  try {
+    await pages.createIndex({ dataset: 1 });
+    await pages.createIndex({ dataset: 1, origUrl: 1 }, { unique: true });
+  } catch (e) {
+    // ignore index create errors (e.g., duplicates in an existing db)
+    console.warn("Index creation warning:", e?.message || e);
+  }
+
   // Pre-compute PageRank values for all datasets
   console.log("Pre-computing PageRank values...");
   pageRankCache = await precomputePageRanks(pages, DATASETS);
   console.log("PageRank pre-computation complete!");
-  
+
   app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 }
 
