@@ -4,6 +4,7 @@ import { MongoClient } from "mongodb";
 import { pContent, extractTitle, calculateWordFrequency } from "./compute.js";
 import { precomputePageRanks } from "./pagerank.js";
 import { performance } from "perf_hooks";
+import { CosineCompute } from "./CosineCompute.js";
 
 const app = express();
 app.use(express.json());
@@ -119,8 +120,9 @@ async function getDatasetIndex(datasetName) {
     for (const [term, count] of docs[i].tf.entries()) {
       const idf = idfFromDf(df.get(term), N);
       if (idf === 0) continue;
-      const tfw = tfWeightFromCount(count, docs[i].totalWords);
-      const w = tfw * idf;
+      // const tfw =  tfWeightFromCount(count, docs[i].totalWords);
+      // const w = tfw * idf;
+      const w = CosineCompute.tfidf(count, docs[i].totalWords, df.get(term), N)
       sumSq += w * w;
     }
     docs[i].mag = Math.sqrt(sumSq);
@@ -291,9 +293,10 @@ app.get("/:datasetName", async (req, res) => {
     const qWeight = new Map();
     let qSumSq = 0;
     for (const term of validTerms) {
-      const idf = idfFromDf(df.get(term), N);
-      const tfw = tfWeightFromCount(qTf.get(term), qTotal);
-      const w = tfw * idf;
+      // const idf = idfFromDf(df.get(term), N);
+      // const tfw = tfWeightFromCount(qTf.get(term), qTotal);
+      // const w = tfw * idf;
+      const w = CosineCompute.tfidf(qTf.get(term), qTotal, df.get(term), N)
       if (w !== 0) {
         qWeight.set(term, w);
         qSumSq += w * w;
@@ -315,15 +318,14 @@ app.get("/:datasetName", async (req, res) => {
       const doc = docs[idx];
 
       // Dot product over query terms
-      let dot = 0;
-      for (const [term, qw] of qWeight.entries()) {
-        const count = doc.tf.get(term) || 0;
-        if (!count) continue;
-        const idf = idfFromDf(df.get(term), N);
-        if (idf === 0) continue;
-        const tfw = tfWeightFromCount(count, doc.totalWords);
-        dot += qw * (tfw * idf);
-      }
+      const { vec: doc_vector, magnitude: doc_magnitude } = CosineCompute.v_document(
+        qWeight.keys(),
+        doc.totalWords,
+        df,
+        doc.tf,
+        N
+      );
+      const dot = CosineCompute.dotProduct([...qWeight.values()], doc_vector)
 
       const denom = qMag * doc.mag;
       let cosine = denom === 0 ? 0 : dot / denom;
