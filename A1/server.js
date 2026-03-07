@@ -52,12 +52,6 @@ function idfFromDf(df, N) {
   return Math.max(0, Math.log2(N / (1 + df)));
 }
 
-function tfWeightFromCount(count, totalWords) {
-  if (!totalWords || totalWords <= 0 || !count) return 0;
-  const tf = count / totalWords;
-  return Math.log2(1 + tf);
-}
-
 function makeTermCounts(tokens) {
   const tf = new Map();
   for (const t of tokens) {
@@ -293,9 +287,6 @@ app.get("/:datasetName", async (req, res) => {
     const qWeight = new Map();
     let qSumSq = 0;
     for (const term of validTerms) {
-      // const idf = idfFromDf(df.get(term), N);
-      // const tfw = tfWeightFromCount(qTf.get(term), qTotal);
-      // const w = tfw * idf;
       const w = CosineCompute.tfidf(qTf.get(term), qTotal, df.get(term), N)
       if (w !== 0) {
         qWeight.set(term, w);
@@ -317,30 +308,20 @@ app.get("/:datasetName", async (req, res) => {
     for (const idx of candidateSet) {
       const doc = docs[idx];
 
-      // Dot product over query terms
-      const { vec: doc_vector, magnitude: doc_magnitude } = CosineCompute.v_document(
-        qWeight.keys(),
-        doc.totalWords,
-        df,
-        doc.tf,
-        N
-      );
-      const dot = CosineCompute.dotProduct([...qWeight.values()], doc_vector)
-
-      const denom = qMag * doc.mag;
-      let cosine = denom === 0 ? 0 : dot / denom;
-
-      const pr = pageRankCache.get(datasetName)?.get(doc.origUrl) || 0;
-      if (boost) {
-        cosine = cosine * (1 + pr * 10);
+      {
+        const pr = pageRankCache.get(datasetName)?.get(doc.origUrl) || 0;
+        let cosine = CosineCompute.cosineScore([...qWeight.keys()], doc, df, [...qWeight.values()], qMag, N);
+        if (boost) {
+          cosine = cosine * (1 + pr * 10);
+        }
+        
+        results.push({
+          url: doc.origUrl,
+          score: cosine,
+          title: doc.title,
+          pr: pr,
+        });
       }
-
-      results.push({
-        url: doc.origUrl,
-        score: cosine,
-        title: doc.title,
-        pr: pr,
-      });
     }
 
     // If we have fewer than limit, pad with 0-score docs (matches prior behavior)

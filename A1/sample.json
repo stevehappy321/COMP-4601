@@ -1,0 +1,64 @@
+{
+  "result": [
+    {
+      "url": "https://docs.kernel.org/kbuild/kconfig.html",
+      "score": 0.0496409532495432,
+      "title": "Configuration targets and editors — The Linux Kernel  documentation",
+      "pr": 0.000087485304646888
+    },
+    {
+      "url": "https://docs.kernel.org/userspace-api/ebpf/index.html",
+      "score": 0.0412762946087009,
+      "title": "eBPF Userspace API — The Linux Kernel  documentation",
+      "pr": 0.000061658410587554
+    },
+    {
+      "url": "https://docs.kernel.org/userspace-api/no_new_privs.html",
+      "score": 0.0179348838289573,
+      "title": "No New Privileges Flag — The Linux Kernel  documentation",
+      "pr": 0.00006467298882946
+    },
+    {
+      "url": "https://docs.kernel.org/dev-tools/container.html",
+      "score": 0.0167618178327288,
+      "title": "Containerized Builds — The Linux Kernel  documentation",
+      "pr": 0.000141784155853239
+    },
+    {
+      "url": "https://docs.kernel.org/userspace-api/check_exec.html",
+      "score": 0.014807787021946,
+      "title": "Executability check — The Linux Kernel  documentation",
+      "pr": 0.00006467298882946
+    },
+    {
+      "url": "https://docs.kernel.org/process/3.Early-stage.html",
+      "score": 0.0128066460031017,
+      "title": "3. Early-stage planning — The Linux Kernel  documentation",
+      "pr": 0.000077740971899347
+    },
+    {
+      "url": "https://docs.kernel.org/trace/mmiotrace.html",
+      "score": 0.0107617839844235,
+      "title": "In-kernel memory-mapped I/O tracing — The Linux Kernel  documentation",
+      "pr": 0.000067297190034935
+    },
+    {
+      "url": "https://docs.kernel.org/process/1.Intro.html",
+      "score": 0.0102523492036832,
+      "title": "1. Introduction — The Linux Kernel  documentation",
+      "pr": 0.000077740971899347
+    },
+    {
+      "url": "https://docs.kernel.org/process/code-of-conduct.html",
+      "score": 0.00993658933874632,
+      "title": "Contributor Covenant Code of Conduct — The Linux Kernel  documentation",
+      "pr": 0.00176311680852756
+    },
+    {
+      "url": "https://docs.kernel.org/admin-guide/binfmt-misc.html",
+      "score": 0.00965938799498419,
+      "title": "Kernel Support for miscellaneous Binary Formats (binfmt_misc) — The Linux Kernel  documentation",
+      "pr": 0.000053746018019213
+    }
+  ]
+}

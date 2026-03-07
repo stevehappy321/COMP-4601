@@ -20,29 +20,11 @@ export class CosineCompute {
         return Math.log2(1+tf) * idf;
     }
 
-    // static v_document(document, documents, query) {
-    //     let vec = [];
-
-    //     const uniqueQuery = Array.from(new Set(query.split(/\s+/))).join(" ");
-    //     for (const term of uniqueQuery.split(/\s+/)) {
-    //         vec.push(this.tfidf_w_d(term, document, documents));
-    //     }
-
-    //     let magnitude = Math.sqrt(vec.reduce((sum, val) => sum + (val * val), 0));
-        
-    //     return {vec, magnitude};
-    // }
-
     static v_document(queryTerms, totalWords, df_dict, tf_dict, N) {
         let vec = [];
 
         for (const term of queryTerms) {
             const count = tf_dict.get(term) || 0;
-            // if (!count) continue;
-            // const idf = this.idf(df.get(term), N);
-            // if (idf === 0) continue;
-            
-            // vec.push( this.tfidf(count, doc.totalWords, df.get(term), N) );
             vec.push( this.tfidf(count, totalWords, df_dict.get(term), N) );
         }
 
@@ -51,30 +33,21 @@ export class CosineCompute {
         return { vec, magnitude };
     }
 
-    static v_query(query, documents) {
-        return this.v_d(query, documents, query);
-    }
-
-    static cosineScore(queryTerms, df, docObj, q_vec, q_magnitude) {
+    static cosineScore(queryTerms, docObj, df_dict, q_vec, q_magnitude, N) {
         const { vec: d_vec, magnitude: d_magnitude } = this.v_document(
             queryTerms,
             docObj.totalWords,
-            df,
+            df_dict,
             docObj.tf,
             N
         );
 
         const dot = this.dotProduct(q_vec, d_vec);
-        const scalar = q_magnitude * d_magnitude;
+        const scalar = q_magnitude * docObj.mag;
 
-        const cosine = scalar === 0 ? 0 : dot / scalar;
+        const cosine = (scalar === 0) ? 0 : dot / scalar;
 
         return cosine;
-
-        // return {
-        //     url: doc.origUrl,
-        //     score: cosine,
-        // };
     }
 
     static dotProduct(vector1, vector2) {
@@ -87,17 +60,6 @@ export class CosineCompute {
             result += vector1[i] * vector2[i];
         }
         return result;
-    }
-
-    static pContent(html) {
-        const $ = cheerio.load(html);
-
-        const paragraphs = [];
-        $("p").each((i, el) => {
-            paragraphs.push($(el).text().trim());
-        });
-
-        return paragraphs.join(" ");
     }
 }
 
