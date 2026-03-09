@@ -5,7 +5,7 @@ Steven Wu
 
 All parts completed successfully, (we think).
 
-<INSERT VIDEO LINK HERE>
+video: https://youtu.be/g4_8VpGNRfY
 
 Web Interface:
 http://134.117.133.4:3000/

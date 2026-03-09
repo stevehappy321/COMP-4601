@@ -3,6 +3,9 @@
 
 /**
  * Calculate PageRank for all pages in a dataset
+ * 
+ * PR(p) = (α/N) + (1-α) × Σ(PR(q) / OutDegree(q))
+ * 
  * @param {Array} docs - Array of document objects with origUrl, incoming, and outgoing arrays
  * @param {number} alpha - Damping factor (default 0.1)
  * @param {number} epsilon - Convergence threshold (default 0.0001)
