@@ -1,7 +1,7 @@
 // server.js
 import express from "express";
 import { MongoClient } from "mongodb";
-import { pContent, extractTitle, calculateWordFrequency } from "./compute.js";
+import { pContent, extractTitle, calculateWordFrequency } from "./utils.js";
 import { precomputePageRanks } from "./pagerank.js";
 import { performance } from "perf_hooks";
 import { CosineCompute } from "./CosineCompute.js";
@@ -114,8 +114,6 @@ async function getDatasetIndex(datasetName) {
     for (const [term, count] of docs[i].tf.entries()) {
       const idf = idfFromDf(df.get(term), N);
       if (idf === 0) continue;
-      // const tfw =  tfWeightFromCount(count, docs[i].totalWords);
-      // const w = tfw * idf;
       const w = CosineCompute.tfidf(count, docs[i].totalWords, df.get(term), N)
       sumSq += w * w;
     }

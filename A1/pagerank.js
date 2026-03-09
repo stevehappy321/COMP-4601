@@ -115,12 +115,12 @@ export function calculatePageRank(docs, alpha = 0.1, epsilon = 0.0001) {
     }
 
     // Snapshot every 5 iterations
-    if ((iterations + 1) % 5 === 0) {
+    // if ((iterations + 1) % 5 === 0) {
       // console.log(`PageRank snapshot at iteration ${iterations + 1}:`);
       // docs.forEach((doc, i) => {
       //   console.log(`  ${doc.origUrl}: ${pr_next[i]}`);
       // });
-    }
+    // }
 
     pr = pr_next;
     pr_next = new Array(n).fill(0);
