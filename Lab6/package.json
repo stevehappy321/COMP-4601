@@ -1,0 +1,30 @@
+{
+  "name": "comp4601-assignment1",
+  "version": "1.0.0",
+  "description": "COMP 4601A Winter 2026 - Assignment 1: Search Engine Implementation",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "crawl-fruits": "node crawl.js fruitsA",
+    "crawl-personal": "node crawl.js personal --max=500",
+    "test-pagerank": "node test-pagerank.js"
+  },
+  "keywords": [
+    "search-engine",
+    "pagerank",
+    "tf-idf",
+    "web-crawler"
+  ],
+  "author": "COMP 4601 Student",
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "crawler": "^2.0.0",
+    "express": "^4.18.2",
+    "mongodb": "^6.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
