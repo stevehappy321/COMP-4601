@@ -352,6 +352,20 @@ app.get("/:datasetName", async (req, res) => {
   }
 });
 
+const { RecommendCompute } = require('./RecommendCompute');
+
+app.get('/recommendations/:datasetName', (req, res) => {
+  const { type, user, item } = req.query;
+  const { users, items, ratings } = loadDataset(req.params.datasetName); // your file loader
+  const result = type === 'item'
+    ? RecommendCompute.predictRatingItem(ratings, users, items, user, item, 2)
+    : RecommendCompute.predictRatingUser(ratings, users, items, user, item, 2);
+  res.json(result);
+});
+
+
+
+
 // --- Startup ---
 async function start() {
   client = new MongoClient(MONGO_URL);
