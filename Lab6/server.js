@@ -24,10 +24,11 @@ app.get("/info", (req, res) => {
 
 app.get('/recommendations/:datasetName', (req, res) => {
   const { type, user, item } = req.query;
+  // console.log({ type, user, item })
   const { users, items, ratings } = loadDataset(req.params.datasetName);
   const result = type === 'item'
-    ? RecommendCompute.predictRatingItem(ratings, users, items, user, item, 2)
-    : RecommendCompute.predictRatingUser(ratings, users, items, user, item, 2);
+    ? RecommendCompute.predictRatingItem(ratings, users, user, item, 2)
+    : RecommendCompute.predictRatingUser(ratings, users, user, item, 2);
   res.json(result);
 });
 
