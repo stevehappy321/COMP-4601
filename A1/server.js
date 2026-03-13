@@ -129,6 +129,24 @@ async function getDatasetIndex(datasetName) {
   return index;
 }
 
+
+import { createProxyMiddleware } from 'http-proxy-middleware';
+
+app.use("/recommendations", createProxyMiddleware({
+  target: "http://localhost:3001",
+  changeOrigin: true,
+  pathRewrite: (path) => `/recommendations${path}`,
+}));
+
+app.use("/test", createProxyMiddleware({
+  target: "http://localhost:3001",
+  changeOrigin: true,
+  pathRewrite: (path) => `/test${path}`,
+}));
+
+
+
+
 // ---------------- INFO (required by grading server) ----------------
 app.get("/info", (req, res) => {
   res.json({
@@ -351,6 +369,8 @@ app.get("/:datasetName", async (req, res) => {
     return res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
 
 // --- Startup ---
 async function start() {
