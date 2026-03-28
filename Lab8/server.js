@@ -23,17 +23,32 @@ app.get("/info", (req, res) => {
 });
 
 app.get('/recommendations/:datasetName', (req, res) => {
+  const datasetName = req.params.datasetName;
   const { type, user, item, k } = req.query;
-  const { users, items, ratings } = loadDataset(req.params.datasetName);
+
+  const text = fs.readFileSync(`./ratings/${datasetName}.txt`, 'utf-8');
+  const dataset = RecommendCompute.parseDataset(text);
+  
   const result = type === 'item'
-    ? RecommendCompute.predictRatingItem(ratings, users, user, item, k || 2)
-    : RecommendCompute.predictRatingUser(ratings, users, user, item, k || 2);
+    ? RecommendCompute.predictRatingItem(dataset, user, item, k || 2)
+    : RecommendCompute.predictRatingUser(dataset, user, item, k || 2);
   res.json(result);
 });
 
 app.get('/test', (req, res) => {
   res.json({ test: "ok" })
-})
+});
+
+app.get("/mae/:datasetName", (req, res) => {
+  const datasetName = req.params.datasetName;
+  const k = req.query.k || 5;
+  const mode = req.query.mode || "user";
+
+  const text = fs.readFileSync(`./ratings/${datasetName}.txt`, 'utf-8');
+  const dataset = RecommendCompute.parseDataset(text);
+
+  res.json( RecommendCompute.computeMAE(dataset, k, mode) );
+});
 
 function loadDataset(dsName) {
   const text = fs.readFileSync("./ratings/" + dsName + ".txt", 'utf-8');
