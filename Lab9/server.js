@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(express.static("public"));
 
 // --- Config ---
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Your registration info
 const SERVER_NAME = "FlambardGreenhill8260";
@@ -22,7 +22,11 @@ app.get("/info", (req, res) => {
   });
 });
 
-app.get('/recommendations/:datasetName', (req, res) => {
+app.get('/test', (req, res) => {
+  res.json({ test: "ok" })
+});
+
+app.get('/recommendations-rating/:datasetName', (req, res) => {
   const datasetName = req.params.datasetName;
   const { type, user, item, k } = req.query;
 
@@ -35,10 +39,6 @@ app.get('/recommendations/:datasetName', (req, res) => {
   res.json(result);
 });
 
-app.get('/test', (req, res) => {
-  res.json({ test: "ok" })
-});
-
 app.get("/mae/:datasetName", (req, res) => {
   const datasetName = req.params.datasetName;
   const k = req.query.k || 5;
@@ -48,6 +48,51 @@ app.get("/mae/:datasetName", (req, res) => {
   const dataset = RecommendCompute.parseDataset(text);
 
   res.json( RecommendCompute.computeMAE(dataset, k, mode) );
+});
+
+app.get('/recommendations/:datasetName', (req, res) => {
+  const { datasetName } = req.params;
+    const { type } = req.query;
+
+    if (!type || !['user', 'item', 'cold'].includes(type)) {
+        return res.status(400).json({ error: 'Invalid or missing type. Must be "user", "item", or "cold".' });
+    }
+
+    // ── Load & parse dataset ──────────────────────────────────────────────────
+    let text = fs.readFileSync(`./votes/${datasetName}.txt`, 'utf-8');;
+    const dataset = RecommendCompute.parseDataset(text);
+    const { users, items, ratedByUser } = dataset;
+
+    // ── Cold Start (graph-based, no Pearson needed) ───────────────────────────
+    if (type === 'cold') {
+        const recs = RecommendCompute.coldStartRecommendations(dataset, 'User1');
+        return res.json({ result: recs });
+    }
+
+    // ── User-based & Item-based: precompute Pearson, then predict ─────────────
+    RecommendCompute.precomputePearson(dataset);
+
+    const targetUser = 'User1';
+    const uIdx = dataset.userIndex[targetUser];
+    const ratedItems = ratedByUser[uIdx];
+
+    // Only predict for items User1 has NOT rated
+    const unratedItems = items
+        .map((name, idx) => ({ name, idx }))
+        .filter(({ idx }) => !ratedItems.has(idx));
+
+    const predictions = unratedItems.map(({ name, idx }) => {
+        const { score } = type === 'user'
+            ? RecommendCompute.predictRatingUser(dataset, uIdx, idx)
+            : RecommendCompute.predictRatingItem(dataset, uIdx, idx);
+
+        return { name, score };
+    });
+
+    // Sort highest predicted score first, alphabetical on ties
+    predictions.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+
+    return res.json({ result: predictions.map(({ name, score }) => ({ name, score })) });
 });
 
 function loadDataset(dsName) {

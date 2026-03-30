@@ -216,6 +216,37 @@ export class RecommendCompute {
         return { mae: totalError / count, count };
     }
 
+
+    static coldStartRecommendations(dataset, targetUser = 'User1') {
+        const { userIndex, items, matrix, ratedByUser, ratersByItem } = dataset;
+
+        const uIdx = typeof targetUser === 'string' ? userIndex[targetUser] : targetUser;
+
+        // Items User1 has already interacted with (rated 1)
+        const ratedItems = ratedByUser[uIdx]; // Set of item indices
+
+        // Vote accumulator for unrated items
+        const votes = new Map(); // itemIdx → count
+
+        // Traverse length-3 paths: uIdx → itemA → otherUser → itemB
+        for (const itemA of ratedItems) {
+            for (const otherUser of ratersByItem[itemA]) {
+                if (otherUser === uIdx) continue; // skip self
+
+                for (const itemB of ratedByUser[otherUser]) {
+                    if (ratedItems.has(itemB)) continue; // skip already-rated items
+
+                    votes.set(itemB, (votes.get(itemB) ?? 0) + 1);
+                }
+            }
+        }
+
+        // Build sorted result (highest votes first)
+        return [...votes.entries()]
+            .map(([idx, v]) => ({ name: items[idx], votes: v }))
+            .sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name));
+    }
+
     // ─── Clamp Helper ─────────────────────────────────────────────────────────────
     static _clamp(score, fallback = 3) {
         const v = isFinite(score) ? score : fallback;
